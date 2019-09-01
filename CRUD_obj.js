@@ -1,4 +1,5 @@
 var mysql = require("mysql");
+var PrettyTable = require("prettytable");
 require("dotenv").config();
 
 class CRUD {
@@ -32,13 +33,13 @@ class CRUD {
      */
 
     create(table, colNames, values) {
-            
+
         this.connection.query(`INSERT INTO ${table} ${colNames} VALUES ?`, [values], function (err, result) {
-                
+
             if (err) throw err;
-            
+
         });
-            
+
         this.connection.end();
 
     }
@@ -54,13 +55,37 @@ class CRUD {
      * read('songs','WHERE song = "All the Small Things"');
      */
 
-    read(table, whereCondition = "") {
+    read(table, columns = "*", whereCondition = "") {
 
-        this.connection.query(`SELECT * FROM ${table} ${whereCondition}`, function (err, result) {
+        this.connection.query(`SELECT ${columns} FROM ${table} ${whereCondition}`, function (err, result) {
 
             if (err) throw err;
 
-            result.forEach(song => console.log(song));
+            var headers = "";
+
+            var data = [];
+
+            if (headers === "") headers = Object.keys(result[0]);
+
+            result.forEach(row => {
+
+                var dataRow = [];
+                
+                headers.forEach(key => {
+                
+                    dataRow.push(row[key]);
+                
+                });
+                
+                data.push(dataRow);
+            
+            });
+
+            var pt = new PrettyTable();
+
+            pt.create(headers, data);
+
+            pt.print();
 
         });
 

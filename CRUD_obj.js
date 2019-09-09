@@ -1,19 +1,17 @@
 var mysql = require("mysql");
 var PrettyTable = require("prettytable");
-require("dotenv").config();
+var util = require("util");
 
 class CRUD {
 
-    constructor() {
-
-        // console.log(process.env.USERNAME);
+    constructor(host, port, user, password, database) {
 
         this.connection = mysql.createConnection({
-            host: "localhost",
-            port: 3306,
-            user: process.env.USERNAME,
-            password: process.env.PASSWORD,
-            database: "bamazon"
+            host: host,
+            port: port,
+            user: user,
+            password: password,
+            database: database
         });
 
         this.connection.connect();
@@ -32,9 +30,9 @@ class CRUD {
      * create('songs', '(title, artist, genre)', [["Crooked Teeth", "Death Cab for Cutie", "Alt Rock"]]);
      */
 
-    create(table, colNames, values) {
+    create(table, columns, values) {
 
-        this.connection.query(`INSERT INTO ${table} ${colNames} VALUES ?`, [values], function (err, result) {
+        this.connection.query(`INSERT INTO ${table} ${columns} VALUES ?`, [values], function (err, result) {
 
             if (err) throw err;
 
@@ -57,39 +55,33 @@ class CRUD {
 
     read(table, columns = "*", whereCondition = "") {
 
-        this.connection.query(`SELECT ${columns} FROM ${table} ${whereCondition}`, function (err, result) {
+        var data = {"values": []}
 
-            if (err) throw err;
+        let promise = new Promise((resolve, reject) => {
 
-            var headers = "";
+            var query = util.promisify(this.connection.query).bind(this.connection);
 
-            var data = [];
-
-            if (headers === "") headers = Object.keys(result[0]);
-
-            result.forEach(row => {
-
-                var dataRow = [];
-                
-                headers.forEach(key => {
-                
-                    dataRow.push(row[key]);
-                
-                });
-                
-                data.push(dataRow);
+            (async () => {
             
-            });
+                try {
+                    
+                    var rows = await query(`SELECT ${columns} FROM ${table} ${whereCondition}`);
+                    
+                    resolve(rows);
+                
+                } catch(err) {
 
-            var pt = new PrettyTable();
+                    console.log(`${err}`);
 
-            pt.create(headers, data);
-
-            pt.print();
+                }
+            
+            })()
 
         });
 
         this.connection.end();
+
+        return promise;
 
     }
 
@@ -137,6 +129,39 @@ class CRUD {
         });
 
         this.connection.end();
+
+    }
+
+
+    prettify(table, columns = "*", whereCondition = "") {
+
+        this.read(table, columns, whereCondition).then((data) => {
+
+            var rows = [];
+    
+            var headers = Object.keys(data[0]);
+    
+            data.forEach(row => {
+    
+                var dataRow = [];
+    
+                headers.forEach(key => {
+    
+                    dataRow.push(row[key]);
+    
+                });
+    
+                rows.push(dataRow);
+    
+            });
+    
+            var pt = new PrettyTable();
+    
+            pt.create(headers, rows);
+    
+            pt.print();
+
+        })
 
     }
 
